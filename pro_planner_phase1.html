@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Network & CCTV Planner - Phase 1</title>
+<style>
+  * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1e1e1e; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* TOP BAR */
+  .topbar {
+    background: #2d2d30; color: #ddd; padding: 8px 14px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    border-bottom: 1px solid #444; z-index: 10;
+  }
+  .topbar h1 { font-size: 14px; margin: 0 14px 0 0; color: #fff; font-weight: 600; white-space: nowrap; }
+  .divider { width: 1px; height: 22px; background: #555; margin: 0 4px; }
+
+  button {
+    background: #3c3c40; color: #ddd; border: 1px solid #555; border-radius: 4px;
+    padding: 6px 10px; font-size: 12px; cursor: pointer; display: inline-flex;
+    align-items: center; gap: 5px; font-weight: 500; transition: 0.15s;
+  }
+  button:hover:not(:disabled) { background: #4a4a4f; border-color: #777; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.active { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+  button.danger { background: #5c1f26; border-color: #a33; }
+  button.danger:hover { background: #7a2a33; }
+
+  .main { flex: 1; display: flex; overflow: hidden; }
+
+  /* LEFT TOOLBAR */
+  .left-toolbar {
+    width: 58px; background: #252526; border-right: 1px solid #444;
+    display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px;
+    overflow-y: auto;
+  }
+  .left-toolbar button { width: 44px; height: 44px; flex-direction: column; font-size: 9px; padding: 2px; gap: 2px; }
+  .left-toolbar button .ic { font-size: 16px; }
+
+  /* CANVAS AREA */
+  .canvas-area { flex: 1; position: relative; overflow: hidden; background: #1a1a1a; }
+  #plannerCanvas { display: block; background: #ffffff; cursor: crosshair; }
+  .canvas-scroll { width: 100%; height: 100%; overflow: auto; }
+
+  /* RIGHT SIDEBAR */
+  .right-sidebar {
+    width: 260px; background: #252526; border-left: 1px solid #444; color: #ddd;
+    padding: 12px; overflow-y: auto; font-size: 12px;
+  }
+  .right-sidebar h3 { margin: 0 0 10px 0; font-size: 13px; color: #fff; border-bottom: 1px solid #444; padding-bottom: 6px; }
+  .prop-row { margin-bottom: 10px; }
+  .prop-row label { display: block; margin-bottom: 3px; color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .prop-row input, .prop-row select {
+    width: 100%; padding: 6px 8px; background: #1e1e1e; border: 1px solid #555;
+    color: #fff; border-radius: 4px; font-size: 12px;
+  }
+  .prop-row .btn-row { display: flex; gap: 6px; margin-top: 4px; }
+  .prop-row .btn-row button { flex: 1; }
+  .empty-state { color: #777; text-align: center; padding: 30px 10px; font-size: 12px; line-height: 1.6; }
+  .badge { display: inline-block; background: #0d6efd; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .badge.locked { background: #dc3545; }
+  .badge.ok { background: #198754; }
+
+  /* BOTTOM STATUS BAR */
+  .statusbar {
+    background: #007acc; color: #fff; font-size: 11px; padding: 4px 14px;
+    display: flex; gap: 18px; align-items: center;
+  }
+  .statusbar span { display: flex; align-items: center; gap: 4px; }
+
+  /* Zoom controls */
+  .zoom-controls { display: flex; align-items: center; gap: 4px; }
+  .zoom-controls button { padding: 4px 8px; }
+  .zoom-label { font-size: 11px; min-width: 42px; text-align: center; }
+
+  .unit-select { background: #3c3c40; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 8px; font-size: 12px; }
+
+  .hint { font-size: 10.5px; color: #888; margin-top: 8px; line-height: 1.5; padding: 8px; background: #1e1e1e; border-radius: 4px; border: 1px solid #3a3a3a; }
+
+  /* BOM PANEL */
+  .bom-panel { background: #1e1e1e; border-top: 2px solid #444; color: #ddd; max-height: 260px; display: flex; flex-direction: column; }
+  .bom-panel.collapsed .bom-body-wrap, .bom-panel.collapsed #bomBody { display: none; }
+  .bom-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid #333; }
+  .bom-header h3 { margin: 0; font-size: 13px; color: #fff; }
+  .bom-controls { display: flex; gap: 10px; align-items: center; font-size: 12px; }
+  .bom-controls label { display: flex; align-items: center; gap: 4px; color: #aaa; }
+  .bom-controls input, .bom-controls select { background: #2d2d30; border: 1px solid #555; color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 12px; }
+  #bomBody { overflow-y: auto; padding: 0 14px 10px 14px; }
+  #bomTable { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  #bomTable th, #bomTable td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #333; }
+  #bomTable th { color: #999; font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.4px; }
+  #bomTable td.num { text-align: right; font-weight: 600; }
+  .bom-stats { display: flex; gap: 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; flex-wrap: wrap; font-size: 12px; }
+  .bom-stat { background: #2d2d30; padding: 6px 12px; border-radius: 6px; }
+  .bom-stat b { color: #0d6efd; display: block; font-size: 14px; }
+  .route-del-btn { background: #5c1f26; border: 1px solid #a33; color: #fff; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+  /* Calibration modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #2d2d30; border: 1px solid #555; border-radius: 8px; padding: 20px; width: 320px; color: #ddd; }
+  .modal h3 { margin: 0 0 12px 0; color: #fff; font-size: 14px; }
+  .modal p { font-size: 12px; color: #aaa; margin: 0 0 14px 0; line-height: 1.5; }
+  .modal input { width: 100%; padding: 8px; background: #1e1e1e; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 13px; margin-bottom: 14px; }
+  .modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <h1>📐 Network & CCTV Planner</h1>
+    <button onclick="newProject()">🆕 New</button>
+    <div class="divider"></div>
+    <button id="btnUndo" onclick="History.undo()" disabled>↩️ Undo</button>
+    <button id="btnRedo" onclick="History.redo()" disabled>↪️ Redo</button>
+    <div class="divider"></div>
+    <button onclick="startCalibration()">📏 Calibrate Scale</button>
+    <select class="unit-select" id="unitSelector" onchange="Renderer.draw()">
+      <option value="m">Meters (m)</option>
+      <option value="ft">Feet (ft)</option>
+    </select>
+    <div class="divider"></div>
+    <div class="zoom-controls">
+      <button onclick="Viewport.zoomOut()">➖</button>
+      <span class="zoom-label" id="zoomLabel">100%</span>
+      <button onclick="Viewport.zoomIn()">➕</button>
+      <button onclick="Viewport.resetZoom()">Reset</button>
+      <button onclick="Viewport.fitToScreen()">⛶ Fit</button>
+    </div>
+    <div class="divider"></div>
+    <button onclick="downloadPNG()">🖼️ Export PNG</button>
+    <button onclick="ProjectIO.exportJSON()">💾 Save JSON</button>
+    <button onclick="document.getElementById('loadFileInput').click()">📂 Load JSON</button>
+    <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="ProjectIO.importJSON(event)">
+  </div>
+
+  <div class="main">
+
+    <!-- LEFT TOOLBAR -->
+    <div class="left-toolbar">
+      <button id="tool-select" class="tool-btn active" onclick="Tools.set('select')" title="Select / Move (V)"><span class="ic">👆</span>Select</button>
+      <button id="tool-wall" class="tool-btn" onclick="Tools.set('wall')" title="Wall (W)"><span class="ic">🧱</span>Wall</button>
+      <button id="tool-measure" class="tool-btn" onclick="Tools.set('measure')" title="Measure (M)"><span class="ic">📐</span>Measure</button>
+      <div style="height:6px"></div>
+      <button id="tool-rack" class="tool-btn" onclick="Tools.set('rack')" title="Rack (R)"><span class="ic">🗄️</span>Rack</button>
+      <button id="tool-camera" class="tool-btn" onclick="Tools.set('camera')" title="Camera (C)"><span class="ic">📹</span>Camera</button>
+      <button id="tool-network" class="tool-btn" onclick="Tools.set('network')" title="RJ45 (N)"><span class="ic">🔌</span>RJ45</button>
+      <button id="tool-ap" class="tool-btn" onclick="Tools.set('ap')" title="Access Point (A)"><span class="ic">📡</span>AP</button>
+      <button id="tool-cable" class="tool-btn" onclick="Tools.set('cable')" title="Cable Route (L)"><span class="ic">🧵</span>Cable</button>
+      <div style="height:6px"></div>
+      <button onclick="deleteSelected()" class="danger" id="btnDelete" disabled title="Delete (Del)"><span class="ic">🗑️</span>Del</button>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="canvas-area">
+      <div class="canvas-scroll" id="canvasScroll">
+        <canvas id="plannerCanvas" width="2000" height="1400"></canvas>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="right-sidebar" id="rightSidebar">
+      <h3>Properties</h3>
+      <div class="empty-state" id="propEmpty">
+        Select an object to view and edit its properties.<br><br>
+        <span class="badge">Scale: <span id="scaleStatusBadge">Not calibrated</span></span>
+      </div>
+      <div id="propContent" style="display:none;"></div>
+
+      <div class="hint">
+        <b>Shortcuts:</b><br>
+        V Select · W Wall · M Measure<br>
+        R Rack · C Camera · N RJ45 · A AP<br>
+        Del Delete · Esc Cancel<br>
+        Ctrl+Z Undo · Ctrl+Y Redo<br>
+        Shift (while drawing wall) = angle snap<br>
+        Mouse wheel = Zoom · Space+drag = Pan
+      </div>
+    </div>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <span>🖱️ <span id="cursorPos">x: 0, y: 0</span></span>
+    <span>📏 Scale: <span id="scaleStatus">Not calibrated (using default 1px = 0.02m)</span></span>
+    <span id="drawStatus"></span>
+    <span style="margin-left:auto;">Objects: <span id="objCount">0</span></span>
+  </div>
+
+  <!-- BOM PANEL -->
+  <div class="bom-panel" id="bomPanel">
+    <div class="bom-header">
+      <h3>🧵 Cable Routes & Bill of Materials</h3>
+      <div class="bom-controls">
+        <label>Slack %: <input type="number" id="slackPercent" value="10" min="0" max="100" step="1" onchange="updateBOM()" style="width:55px;"></label>
+        <label>Cable type:
+          <select id="cableTypeSelect" onchange="updateBOM()">
+            <option value="Cat6 UTP">Cat6 UTP</option>
+            <option value="Cat6a UTP">Cat6a UTP</option>
+            <option value="Cat5e UTP">Cat5e UTP</option>
+          </select>
+        </label>
+        <button onclick="exportBOMCSV()">📊 Export BOM CSV</button>
+        <button onclick="toggleBOMPanel()" id="bomToggleBtn">▼ Collapse</button>
+      </div>
+    </div>
+    <div id="bomBody">
+      <table id="bomTable">
+        <thead>
+          <tr><th>Cable ID</th><th>From</th><th>To</th><th>Route Length</th><th>+ Slack</th><th>Final Cable</th><th></th></tr>
+        </thead>
+        <tbody id="bomTbody">
+          <tr><td colspan="7" style="text-align:center;color:#888;">No cable routes yet. Use the Cable tool to connect Rack → Device.</td></tr>
+        </tbody>
+      </table>
+      <div class="bom-stats" id="bomStats"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Calibration Modal -->
+<div class="modal-overlay" id="calibModal">
+  <div class="modal">
+    <h3>📏 Calibrate Scale</h3>
+    <p id="calibText">Click two points on the canvas to define a known distance. Then enter the real-world length below.</p>
+    <input type="number" id="calibLengthInput" placeholder="Real length in meters (e.g. 8.5)" step="0.01" min="0.01">
+    <div class="btn-row">
+      <button onclick="cancelCalibration()">Cancel</button>
+      <button onclick="applyCalibration()" style="background:#0d6efd;border-color:#0d6efd;color:#fff;">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   PRO NETWORK & CCTV PLANNER — PHASE 1 FOUNDATION
+   Modules: ProjectState, ScaleManager, Viewport, SnapManager,
+            WallManager, DeviceManager, HistoryManager,
+            Renderer, Tools, ProjectIO
+   ========================================================= */
+
+const canvas = document.getElementById('plannerCanvas');
+const ctx = canvas.getContext('2d');
+const canvasScroll = document.getElementById('canvasScroll');
+
+/* ---------------------------------------------------------
+   PROJECT STATE — single source of truth. All geometry in
+   canvas "world" pixel coordinates. Real-world size derived
+   via ScaleManager.pxToMeters().
+   --------------------------------------------------------- */
+const ProjectState = {
+  walls: [],       // {id,x1,y1,x2,y2,locked}
+  devices: [],      // {id,type,x,y,name,...type-specific}
+  routes: [],       // {id,fromId,toId,waypoints:[{x,y}]}
+  nextId: 1,
+  genId() { return this.nextId++; }
+};
+
+/* ---------------------------------------------------------
+   SCALE MANAGER — real calibration, not fake numbers.
+   pxPerMeter: how many canvas pixels = 1 real meter.
+   --------------------------------------------------------- */
+const ScaleManager = {
+  pxPerMeter: 50,     // sane default (50px = 1m) until calibrated
+  calibrated: false,
+
+  pxToMeters(px) { return px / this.pxPerMeter; },
+  metersToPx(m) { return m * this.pxPerMeter; },
+
+  setFromKnownDistance(pixelDistance, realMeters) {
+    if (pixelDistance <= 0 || realMeters <= 0) return false;
+    this.pxPerMeter = pixelDistance / realMeters;
+    this.calibrated = true;
+    updateScaleStatus();
+    return true;
+  },
+
+  formatLength(meters) {
+    const unit = document.getElementById('unitSelector').value;
+    if (unit === 'ft') return (meters * 3.28084).toFixed(2) + ' ft';
+    return meters.toFixed(2) + ' m';
+  },
+
+  // Parse a user-entered length string (in current display unit) -> meters
+  parseLengthToMeters(value) {
+    const unit = document.getElementById('unitSelector').value;
+    const v = parseFloat(value);
+    if (isNaN(v)) return null;
+    return unit === 'ft' ? v / 3.28084 : v;
+  }
+};
+
+function updateScaleStatus() {
+  const txt = ScaleManager.calibrated
+    ? `Calibrated (${ScaleManager.pxPerMeter.toFixed(1)} px/m)`
+    : `Not calibrated (default ${ScaleManager.pxPerMeter} px/m)`;
+  document.getElementById('scaleStatus').textContent = txt;
+  const badge = document.getElementById('scaleStatusBadge');
+  if (badge) badge.textContent = ScaleManager.calibrated ? 'Calibrated ✓' : 'Not calibrated';
+}
+
+/* ---------------------------------------------------------
+   VIEWPORT — pan & zoom. Never touches underlying data.
+   --------------------------------------------------------- */
+const Viewport = {
+  zoom: 1,
+  minZoom: 0.25,
+  maxZoom: 4,
+
+  setZoom(z) {
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, z));
+    canvas.style.width = (canvas.width * this.zoom) + 'px';
+    canvas.style.height = (canvas.height * this.zoom) + 'px';
+    document.getElementById('zoomLabel').textContent = Math.round(this.zoom * 100) + '%';
+  },
+  zoomIn() { this.setZoom(this.zoom + 0.1); },
+  zoomOut() { this.setZoom(this.zoom - 0.1); },
+  resetZoom() { this.setZoom(1); },
+  fitToScreen() {
+    const rect = canvasScroll.getBoundingClientRect();
+    const zx = (rect.width - 40) / canvas.width;
+    const zy = (rect.height - 40) / canvas.height;
+    this.setZoom(Math.min(zx, zy, 1));
+  }
+};
+Viewport.setZoom(1);
+
+// Convert a mouse event to WORLD (canvas pixel) coordinates,
+// correctly accounting for CSS zoom scaling + scroll offset.
+function getWorldCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+/* ---------------------------------------------------------
+   SNAP MANAGER — angle snapping for wall drawing.
+   --------------------------------------------------------- */
+const SnapManager = {
+  angleStep: 15, // degrees
+
+  snapAngle(ax, ay, x, y, force) {
+    if (!force) return { x, y };
+    const dx = x - ax, dy = y - ay;
+    const r = Math.hypot(dx, dy);
+    if (r < 1) return { x, y };
+    const stepRad = this.angleStep * Math.PI / 180;
+    const ang = Math.round(Math.atan2(dy, dx) / stepRad) * stepRad;
+    return { x: ax + Math.cos(ang) * r, y: ay + Math.sin(ang) * r };
+  },
+
+  // Endpoint snapping: find nearby wall endpoint within threshold
+  findNearbyEndpoint(x, y, excludeWall, threshold = 14) {
+    for (const w of ProjectState.walls) {
+      if (w === excludeWall) continue;
+      if (Math.hypot(w.x1 - x, w.y1 - y) <= threshold) return { x: w.x1, y: w.y1, wall: w, end: 'start' };
+      if (Math.hypot(w.x2 - x, w.y2 - y) <= threshold) return { x: w.x2, y: w.y2, wall: w, end: 'end' };
+    }
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   HISTORY MANAGER — undo/redo with debounced snapshotting
+   (does NOT spam a new state per mousemove).
+   --------------------------------------------------------- */
+const History = {
+  stack: [],
+  index: -1,
+  maxStates: 100,
+
+  snapshot() {
+    const state = JSON.stringify({
+      walls: ProjectState.walls,
+      devices: ProjectState.devices,
+      routes: ProjectState.routes,
+      nextId: ProjectState.nextId
+    });
+    // avoid duplicate consecutive snapshots
+    if (this.index >= 0 && this.stack[this.index] === state) return;
+    this.stack = this.stack.slice(0, this.index + 1);
+    this.stack.push(state);
+    if (this.stack.length > this.maxStates) this.stack.shift();
+    this.index = this.stack.length - 1;
+    this.updateButtons();
+  },
+
+  undo() {
+    if (this.index <= 0) return;
+    this.index--;
+    this.restore();
+  },
+  redo() {
+    if (this.index >= this.stack.length - 1) return;
+    this.index++;
+    this.restore();
+  },
+  restore() {
+    const data = JSON.parse(this.stack[this.index]);
+    ProjectState.walls = data.walls;
+    ProjectState.devices = data.devices;
+    ProjectState.routes = data.routes || [];
+    ProjectState.nextId = data.nextId;
+    Selection.clear();
+    Renderer.draw();
+    this.updateButtons();
+    updateBOM();
+  },
+  updateButtons() {
+    document.getElementById('btnUndo').disabled = this.index <= 0;
+    document.getElementById('btnRedo').disabled = this.index >= this.stack.length - 1;
+  },
+  reset() {
+    this.stack = []; this.index = -1;
+    this.snapshot();
+  }
+};
+
+/* ---------------------------------------------------------
+   SELECTION
+   --------------------------------------------------------- */
+const Selection = {
+  object: null,
+  type: null, // 'wall' | 'device'
+
+  set(obj, type) {
+    this.object = obj; this.type = type;
+    document.getElementById('btnDelete').disabled = !obj;
+    PropertyPanel.render();
+    Renderer.draw();
+  },
+  clear() { this.set(null, null); }
+};
+
+/* ---------------------------------------------------------
+   WALL MANAGER
+   --------------------------------------------------------- */
+const WallManager = {
+  create(x1, y1, x2, y2) {
+    const w = { id: ProjectState.genId(), x1, y1, x2, y2, locked: false };
+    ProjectState.walls.push(w);
+    return w;
+  },
+  length(w) { return Math.hypot(w.x2 - w.x1, w.y2 - w.y1); },
+  angleDeg(w) { return Math.atan2(w.y2 - w.y1, w.x2 - w.x1) * 180 / Math.PI; },
+  remove(w) {
+    ProjectState.walls = ProjectState.walls.filter(x => x !== w);
+  },
+  setLengthMeters(w, meters, fixedEnd = 'x1y1') {
+    if (meters <= 0) return false;
+    const angle = Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+    const px = ScaleManager.metersToPx(meters);
+    if (fixedEnd === 'x1y1') {
+      w.x2 = w.x1 + Math.cos(angle) * px;
+      w.y2 = w.y1 + Math.sin(angle) * px;
+    } else {
+      w.x1 = w.x2 - Math.cos(angle) * px;
+      w.y1 = w.y2 - Math.sin(angle) * px;
+    }
+    return true;
+  },
+  setAngleDeg(w, deg, fixedEnd = 'x1y1') {
+    const rad = deg * Math.PI / 180;
+    const len = this.length(w);
+    if (fixedEnd === 'x1y1') {
+      w.x2 = w.x1 + Math.cos(rad) * len;
+      w.y2 = w.y1 + Math.sin(rad) * len;
+    } else {
+      w.x1 = w.x2 - Math.cos(rad) * len;
+      w.y1 = w.y2 - Math.sin(rad) * len;
+    }
+  }
+};
+
+/* ---------------------------------------------------------
+   DEVICE MANAGER
+   --------------------------------------------------------- */
+const DEVICE_DEFAULTS = {
+  rack:    { icon: '🗄️', color: '#fd7e14', label: 'RACK' },
+  camera:  { icon: '📹', color: '#dc3545', label: 'CAM' },
+  network: { icon: '🔌', color: '#0d6efd', label: 'LAN' },
+  ap:      { icon: '📡', color: '#6f42c1', label: 'AP' }
+};
+
+const DeviceManager = {
+  create(type, x, y) {
+    const count = ProjectState.devices.filter(d => d.type === type).length + 1;
+    const d = {
+      id: ProjectState.genId(),
+      type, x, y,
+      name: DEVICE_DEFAULTS[type].label + '-' + String(count).padStart(2, '0')
+    };
+    if (type === 'camera') {
+      Object.assign(d, { model: 'bullet', rotation: 0, fov: 84, rangeMeters: 12 });
+    }
+    ProjectState.devices.push(d);
+    return d;
+  },
+  remove(d) {
+    ProjectState.devices = ProjectState.devices.filter(x => x !== d);
+  },
+  findAt(x, y, threshold = 15) {
+    for (let i = ProjectState.devices.length - 1; i >= 0; i--) {
+      const d = ProjectState.devices[i];
+      if (Math.hypot(d.x - x, d.y - y) <= threshold) return d;
+    }
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   ROUTE MANAGER — orthogonal cable routing between two
+   devices/racks, with draggable/insertable waypoints.
+   --------------------------------------------------------- */
+const RouteManager = {
+  // Auto-generate an orthogonal (single-bend) path A -> corner -> B
+  autoRoute(a, b) {
+    const corner = { x: b.x, y: a.y }; // horizontal first, then vertical
+    return [ {x:a.x,y:a.y}, corner, {x:b.x,y:b.y} ];
+  },
+  create(fromDevice, toDevice) {
+    const waypoints = this.autoRoute(fromDevice, toDevice);
+    const r = { id: ProjectState.genId(), fromId: fromDevice.id, toId: toDevice.id, waypoints };
+    ProjectState.routes.push(r);
+    return r;
+  },
+  remove(r) { ProjectState.routes = ProjectState.routes.filter(x => x !== r); },
+  lengthPx(r) {
+    let total = 0;
+    for (let i = 0; i < r.waypoints.length - 1; i++) {
+      const a = r.waypoints[i], b = r.waypoints[i+1];
+      total += Math.hypot(b.x-a.x, b.y-a.y);
+    }
+    return total;
+  },
+  lengthMeters(r) { return ScaleManager.pxToMeters(this.lengthPx(r)); },
+  // keep route endpoints glued to their device positions
+  syncEndpoints(r) {
+    const from = ProjectState.devices.find(d => d.id === r.fromId);
+    const to = ProjectState.devices.find(d => d.id === r.toId);
+    if (from) { r.waypoints[0].x = from.x; r.waypoints[0].y = from.y; }
+    if (to) { const last = r.waypoints.length-1; r.waypoints[last].x = to.x; r.waypoints[last].y = to.y; }
+  },
+  syncAll() { ProjectState.routes.forEach(r => this.syncEndpoints(r)); },
+  addWaypoint(r, segmentIndex, x, y) {
+    r.waypoints.splice(segmentIndex + 1, 0, { x, y });
+  },
+  removeWaypoint(r, idx) {
+    if (idx === 0 || idx === r.waypoints.length - 1) return; // never remove endpoints
+    r.waypoints.splice(idx, 1);
+  },
+  findRouteNear(x, y, threshold = 8) {
+    for (let i = ProjectState.routes.length - 1; i >= 0; i--) {
+      const r = ProjectState.routes[i];
+      for (let j = 0; j < r.waypoints.length - 1; j++) {
+        const a = r.waypoints[j], b = r.waypoints[j+1];
+        if (pointToSegDist(x, y, a.x, a.y, b.x, b.y) <= threshold) {
+          return { route: r, segmentIndex: j };
+        }
+      }
+    }
+    return null;
+  },
+  findWaypointHandle(x, y, threshold = 10) {
+    for (let i = ProjectState.routes.length - 1; i >= 0; i--) {
+      const r = ProjectState.routes[i];
+      for (let j = 0; j < r.waypoints.length; j++) {
+        const wp = r.waypoints[j];
+        if (Math.hypot(wp.x - x, wp.y - y) <= threshold) return { route: r, index: j };
+      }
+    }
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   WALL CONNECTIONS — endpoints that snap together stay
+   linked; moving one moves the other.
+   --------------------------------------------------------- */
+const WallConnections = {
+  // Merge endpoint of wall `w` (end='start'|'end') onto target wall's endpoint
+  mergeEndpoint(w, end, targetWall, targetEnd) {
+    if (!w.links) w.links = {};
+    w.links[end] = { wallId: targetWall.id, end: targetEnd };
+    if (!targetWall.links) targetWall.links = {};
+    targetWall.links[targetEnd] = { wallId: w.id, end };
+  },
+  // Propagate a moved endpoint to any linked wall (one level; avoids infinite loop via visited)
+  propagate(wall, end, visited = new Set()) {
+    const key = wall.id + ':' + end;
+    if (visited.has(key)) return;
+    visited.add(key);
+    const link = wall.links && wall.links[end];
+    if (!link) return;
+    const other = ProjectState.walls.find(x => x.id === link.wallId);
+    if (!other) return;
+    const x = end === 'start' ? wall.x1 : wall.x2;
+    const y = end === 'start' ? wall.y1 : wall.y2;
+    if (link.end === 'start') { other.x1 = x; other.y1 = y; } else { other.x2 = x; other.y2 = y; }
+    this.propagate(other, link.end, visited);
+  }
+};
+
+/* ---------------------------------------------------------
+   TOOLS
+   --------------------------------------------------------- */
+const Tools = {
+  current: 'select',
+  set(tool) {
+    this.current = tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('tool-' + tool);
+    if (btn) btn.classList.add('active');
+    WallDraw.cancel();
+    Measure.cancel();
+    CableDraw.cancel();
+    Selection.clear();
+    setDrawStatus('');
+    Renderer.draw();
+  }
+};
+
+/* ---------------------------------------------------------
+   CABLE DRAWING STATE MACHINE — click device A, click device B
+   --------------------------------------------------------- */
+const CableDraw = {
+  fromDevice: null,
+  begin(device) {
+    if (!this.fromDevice) {
+      this.fromDevice = device;
+      setDrawStatus(`Cable: from ${device.name} — click destination device`);
+    } else {
+      if (device !== this.fromDevice) {
+        const r = RouteManager.create(this.fromDevice, device);
+        Selection.set(r, 'route');
+        History.snapshot();
+      }
+      this.cancel();
+    }
+  },
+  cancel() { this.fromDevice = null; setDrawStatus(''); }
+};
+
+/* ---------------------------------------------------------
+   WALL DRAWING STATE MACHINE
+   --------------------------------------------------------- */
+const WallDraw = {
+  active: false,
+  start: null,
+  preview: null,
+
+  begin(x, y) {
+    const snap = SnapManager.findNearbyEndpoint(x, y, null);
+    this.start = snap ? { x: snap.x, y: snap.y } : { x, y };
+    this.active = true;
+  },
+  update(x, y, shiftKey) {
+    if (!this.active) return;
+    let p = { x, y };
+    const nearby = SnapManager.findNearbyEndpoint(x, y, null);
+    if (nearby) p = { x: nearby.x, y: nearby.y };
+    else if (shiftKey) p = SnapManager.snapAngle(this.start.x, this.start.y, x, y, true);
+    this.preview = p;
+    const len = Math.hypot(p.x - this.start.x, p.y - this.start.y);
+    const meters = ScaleManager.pxToMeters(len);
+    const angle = Math.atan2(p.y - this.start.y, p.x - this.start.x) * 180 / Math.PI;
+    setDrawStatus(`Length: ${ScaleManager.formatLength(meters)}  |  Angle: ${angle.toFixed(1)}°`);
+  },
+  finish() {
+    if (!this.active || !this.preview) { this.cancel(); return; }
+    const len = Math.hypot(this.preview.x - this.start.x, this.preview.y - this.start.y);
+    if (len > 8) {
+      const w = WallManager.create(this.start.x, this.start.y, this.preview.x, this.preview.y);
+      Selection.set(w, 'wall');
+      History.snapshot();
+    }
+    this.cancel();
+  },
+  cancel() {
+    this.active = false; this.start = null; this.preview = null;
+    setDrawStatus('');
+  }
+};
+
+/* ---------------------------------------------------------
+   MEASURE TOOL
+   --------------------------------------------------------- */
+const Measure = {
+  points: [],
+  begin(x, y) { this.points.push({x,y}); },
+  cancel() { this.points = []; },
+};
+
+/* ---------------------------------------------------------
+   DRAG STATE (walls + devices)
+   --------------------------------------------------------- */
+const Drag = {
+  active: false,
+  mode: null, // 'wall-body' | 'wall-start' | 'wall-end' | 'device'
+  startMouse: null,
+  origWall: null,
+  offset: null
+};
+
+function setDrawStatus(txt) { document.getElementById('drawStatus').textContent = txt; }
+
+/* ---------------------------------------------------------
+   HIT TESTING
+   --------------------------------------------------------- */
+function pointToSegDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx*dx + dy*dy;
+  if (!len2) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1)*dx + (py - y1)*dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t*dx), py - (y1 + t*dy));
+}
+function findWallHandleAt(x, y, threshold = 12) {
+  for (let i = ProjectState.walls.length - 1; i >= 0; i--) {
+    const w = ProjectState.walls[i];
+    if (Math.hypot(w.x1 - x, w.y1 - y) <= threshold) return { wall: w, handle: 'start' };
+    if (Math.hypot(w.x2 - x, w.y2 - y) <= threshold) return { wall: w, handle: 'end' };
+  }
+  return null;
+}
+function findWallAt(x, y, threshold = 8) {
+  for (let i = ProjectState.walls.length - 1; i >= 0; i--) {
+    const w = ProjectState.walls[i];
+    if (pointToSegDist(x, y, w.x1, w.y1, w.x2, w.y2) <= threshold) return w;
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------
+   MOUSE EVENTS
+   --------------------------------------------------------- */
+let spacePan = false, isPanning = false, panStart = null, scrollStart = null;
+
+canvas.addEventListener('mousedown', (e) => {
+  if (spacePan) {
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    scrollStart = { x: canvasScroll.scrollLeft, y: canvasScroll.scrollTop };
+    return;
+  }
+  const { x, y } = getWorldCoords(e);
+
+  if (Tools.current === 'select') {
+    const wpHandle = RouteManager.findWaypointHandle(x, y);
+    if (wpHandle && wpHandle.index !== 0 && wpHandle.index !== wpHandle.route.waypoints.length - 1) {
+      Selection.set(wpHandle.route, 'route');
+      Drag.active = true; Drag.mode = 'route-waypoint';
+      Drag.routeWaypointIndex = wpHandle.index;
+      return;
+    }
+    const handle = findWallHandleAt(x, y);
+    if (handle) {
+      Selection.set(handle.wall, 'wall');
+      Drag.active = true;
+      Drag.mode = handle.handle === 'start' ? 'wall-start' : 'wall-end';
+      Drag.origWall = { ...handle.wall };
+      return;
+    }
+    const dev = DeviceManager.findAt(x, y);
+    if (dev) {
+      Selection.set(dev, 'device');
+      Drag.active = true; Drag.mode = 'device';
+      Drag.offset = { x: x - dev.x, y: y - dev.y };
+      return;
+    }
+    const wall = findWallAt(x, y);
+    if (wall) {
+      if (!wall.locked) {
+        Selection.set(wall, 'wall');
+        Drag.active = true; Drag.mode = 'wall-body';
+        Drag.startMouse = { x, y };
+        Drag.origWall = { ...wall };
+      } else {
+        Selection.set(wall, 'wall');
+      }
+      return;
+    }
+    const routeHit = RouteManager.findRouteNear(x, y);
+    if (routeHit) {
+      if (e.detail === 2) { // double-click = insert waypoint
+        RouteManager.addWaypoint(routeHit.route, routeHit.segmentIndex, x, y);
+        History.snapshot();
+      }
+      Selection.set(routeHit.route, 'route');
+      Renderer.draw();
+      return;
+    }
+    Selection.clear();
+    return;
+  }
+
+  if (Tools.current === 'wall') {
+    WallDraw.begin(x, y);
+    return;
+  }
+
+  if (Tools.current === 'cable') {
+    const dev = DeviceManager.findAt(x, y);
+    if (dev) CableDraw.begin(dev);
+    Renderer.draw();
+    return;
+  }
+
+  if (Tools.current === 'measure') {
+    Measure.begin(x, y);
+    if (Measure.points.length === 2) {
+      const [a,b] = Measure.points;
+      const meters = ScaleManager.pxToMeters(Math.hypot(b.x-a.x, b.y-a.y));
+      const angle = Math.atan2(b.y-a.y, b.x-a.x) * 180/Math.PI;
+      setDrawStatus(`Measured: ${ScaleManager.formatLength(meters)} @ ${angle.toFixed(1)}°  (click to start new measurement)`);
+      Renderer.draw();
+      Measure.points = [];
+      return;
+    }
+    Renderer.draw();
+    return;
+  }
+
+  if (['rack','camera','network','ap'].includes(Tools.current)) {
+    const d = DeviceManager.create(Tools.current, x, y);
+    Selection.set(d, 'device');
+    History.snapshot();
+    Renderer.draw();
+    return;
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (isPanning) {
+    canvasScroll.scrollLeft = scrollStart.x - (e.clientX - panStart.x);
+    canvasScroll.scrollTop = scrollStart.y - (e.clientY - panStart.y);
+    return;
+  }
+  const { x, y } = getWorldCoords(e);
+  document.getElementById('cursorPos').textContent =
+    `x: ${ScaleManager.pxToMeters(x).toFixed(2)}m, y: ${ScaleManager.pxToMeters(y).toFixed(2)}m`;
+
+  if (Drag.active && Selection.type === 'wall') {
+    const w = Selection.object;
+    if (Drag.mode === 'wall-body') {
+      const dx = x - Drag.startMouse.x, dy = y - Drag.startMouse.y;
+      w.x1 = Drag.origWall.x1 + dx; w.y1 = Drag.origWall.y1 + dy;
+      w.x2 = Drag.origWall.x2 + dx; w.y2 = Drag.origWall.y2 + dy;
+      WallConnections.propagate(w, 'start');
+      WallConnections.propagate(w, 'end');
+    } else {
+      const nearby = SnapManager.findNearbyEndpoint(x, y, w);
+      const target = nearby ? { x: nearby.x, y: nearby.y } : (e.shiftKey
+        ? SnapManager.snapAngle(
+            Drag.mode === 'wall-start' ? w.x2 : w.x1,
+            Drag.mode === 'wall-start' ? w.y2 : w.y1,
+            x, y, true)
+        : { x, y });
+      const end = Drag.mode === 'wall-start' ? 'start' : 'end';
+      if (end === 'start') { w.x1 = target.x; w.y1 = target.y; }
+      else { w.x2 = target.x; w.y2 = target.y; }
+      WallConnections.propagate(w, end);
+      if (nearby) {
+        WallConnections.mergeEndpoint(w, end, nearby.wall, nearby.end);
+        Renderer.showSnapIndicator = { x: nearby.x, y: nearby.y };
+      } else {
+        Renderer.showSnapIndicator = null;
+      }
+    }
+    PropertyPanel.render();
+    Renderer.draw();
+    return;
+  }
+
+  if (Drag.active && Selection.type === 'device') {
+    const d = Selection.object;
+    d.x = x - Drag.offset.x; d.y = y - Drag.offset.y;
+    RouteManager.syncAll();
+    PropertyPanel.render();
+    Renderer.draw();
+    return;
+  }
+
+  if (Drag.active && Selection.type === 'route' && Drag.mode === 'route-waypoint') {
+    const r = Selection.object;
+    r.waypoints[Drag.routeWaypointIndex] = { x, y };
+    Renderer.draw();
+    return;
+  }
+
+  if (WallDraw.active) {
+    WallDraw.update(x, y, e.shiftKey);
+    Renderer.draw();
+    return;
+  }
+
+  if (Tools.current === 'measure' && Measure.points.length === 1) {
+    Renderer.draw();
+    const a = Measure.points[0];
+    const meters = ScaleManager.pxToMeters(Math.hypot(x-a.x, y-a.y));
+    setDrawStatus(`Measuring: ${ScaleManager.formatLength(meters)}`);
+    drawMeasurePreview(a, {x,y});
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (isPanning) { isPanning = false; return; }
+  if (Drag.active) {
+    Drag.active = false;
+    Renderer.showSnapIndicator = null;
+    History.snapshot();
+    updateBOM();
+  }
+  if (Tools.current === 'wall' && WallDraw.active) {
+    const { x, y } = getWorldCoords(e);
+    WallDraw.update(x, y, e.shiftKey);
+    WallDraw.finish();
+    Renderer.draw();
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (e.deltaY < 0) Viewport.zoomIn(); else Viewport.zoomOut();
+}, { passive: false });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { spacePan = true; canvas.style.cursor = 'grab'; return; }
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+  if (e.key === 'Escape') { WallDraw.cancel(); Measure.cancel(); Selection.clear(); Renderer.draw(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') { deleteSelected(); }
+  if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); History.undo(); }
+  if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); History.redo(); }
+  if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); ProjectIO.exportJSON(); }
+
+  const map = { v:'select', w:'wall', m:'measure', r:'rack', c:'camera', n:'network', a:'ap', l:'cable' };
+  const k = e.key.toLowerCase();
+  if (map[k] && !e.ctrlKey) Tools.set(map[k]);
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') { spacePan = false; canvas.style.cursor = 'crosshair'; }
+});
+
+function deleteSelected() {
+  if (!Selection.object) return;
+  if (Selection.type === 'wall') WallManager.remove(Selection.object);
+  else if (Selection.type === 'route') RouteManager.remove(Selection.object);
+  else {
+    DeviceManager.remove(Selection.object);
+    ProjectState.routes = ProjectState.routes.filter(r => r.fromId !== Selection.object.id && r.toId !== Selection.object.id);
+  }
+  Selection.clear();
+  History.snapshot();
+  Renderer.draw();
+  updateBOM();
+}
+
+function deleteWaypointOnSelectedRoute(idx) {
+  if (Selection.type !== 'route') return;
+  RouteManager.removeWaypoint(Selection.object, idx);
+  History.snapshot();
+  Renderer.draw();
+}
+
+/* ---------------------------------------------------------
+   CALIBRATION FLOW
+   --------------------------------------------------------- */
+const Calib = { active: false, points: [] };
+
+function startCalibration() {
+  Calib.active = true; Calib.points = [];
+  Tools.set('select');
+  Calib.active = true; // re-set after Tools.set clears things
+  setDrawStatus('Calibration: click the two ends of a known-length wall/edge on the canvas.');
+}
+function cancelCalibration() {
+  Calib.active = false; Calib.points = [];
+  document.getElementById('calibModal').classList.remove('show');
+  setDrawStatus('');
+}
+function applyCalibration() {
+  const val = document.getElementById('calibLengthInput').value;
+  const meters = parseFloat(val);
+  if (isNaN(meters) || meters <= 0) { alert('Enter a valid length in meters.'); return; }
+  const [a,b] = Calib.points;
+  const pxDist = Math.hypot(b.x-a.x, b.y-a.y);
+  ScaleManager.setFromKnownDistance(pxDist, meters);
+  cancelCalibration();
+  Renderer.draw();
+}
+
+// Intercept canvas clicks during calibration
+canvas.addEventListener('mousedown', (e) => {
+  if (!Calib.active) return;
+  const { x, y } = getWorldCoords(e);
+  Calib.points.push({x,y});
+  if (Calib.points.length === 2) {
+    document.getElementById('calibModal').classList.add('show');
+    document.getElementById('calibLengthInput').value = '';
+    document.getElementById('calibLengthInput').focus();
+  }
+}, true);
+
+/* ---------------------------------------------------------
+   PROPERTY PANEL
+   --------------------------------------------------------- */
+const PropertyPanel = {
+  render() {
+    const empty = document.getElementById('propEmpty');
+    const content = document.getElementById('propContent');
+    if (!Selection.object) { empty.style.display = 'block'; content.style.display = 'none'; return; }
+    empty.style.display = 'none'; content.style.display = 'block';
+
+    if (Selection.type === 'wall') this.renderWall(content);
+    else if (Selection.type === 'route') this.renderRoute(content);
+    else this.renderDevice(content);
+  },
+  renderRoute(content) {
+    const r = Selection.object;
+    const from = ProjectState.devices.find(d => d.id === r.fromId);
+    const to = ProjectState.devices.find(d => d.id === r.toId);
+    const meters = RouteManager.lengthMeters(r);
+    const slack = parseFloat(document.getElementById('slackPercent').value) || 0;
+    const withSlack = meters * (1 + slack/100);
+    let wpRows = '';
+    r.waypoints.forEach((wp, idx) => {
+      if (idx === 0 || idx === r.waypoints.length-1) return;
+      wpRows += `<div class="prop-row btn-row"><span style="flex:1;color:#aaa;">Waypoint ${idx}</span><button onclick="deleteWaypointOnSelectedRoute(${idx})">Remove</button></div>`;
+    });
+    content.innerHTML = `
+      <div class="prop-row"><label>Cable ID</label><input value="#${r.id}" disabled></div>
+      <div class="prop-row"><label>From</label><input value="${from?from.name:'?'}" disabled></div>
+      <div class="prop-row"><label>To</label><input value="${to?to.name:'?'}" disabled></div>
+      <div class="prop-row"><label>Route Length</label><input value="${ScaleManager.formatLength(meters)}" disabled></div>
+      <div class="prop-row"><label>With Slack (${slack}%)</label><input value="${ScaleManager.formatLength(withSlack)}" disabled></div>
+      ${wpRows}
+      <div class="hint">Double-click the cable line to add a waypoint. Drag waypoints to reroute around walls.</div>
+      <div class="prop-row btn-row"><button class="danger" onclick="deleteSelected()" style="width:100%">🗑️ Delete Route</button></div>
+    `;
+  },
+  renderWall(content) {
+    const w = Selection.object;
+    const lenM = ScaleManager.pxToMeters(WallManager.length(w));
+    const angle = WallManager.angleDeg(w);
+    const unit = document.getElementById('unitSelector').value;
+    const dispLen = unit === 'ft' ? (lenM * 3.28084) : lenM;
+
+    content.innerHTML = `
+      <div class="prop-row"><label>Wall ID</label><input value="#${w.id}" disabled></div>
+      <div class="prop-row"><label>Length (${unit})</label><input type="number" id="pWallLen" value="${dispLen.toFixed(2)}" step="0.01" min="0.01" ${w.locked?'disabled':''}></div>
+      <div class="prop-row"><label>Angle (°)</label><input type="number" id="pWallAngle" value="${angle.toFixed(1)}" step="1" ${w.locked?'disabled':''}></div>
+      <div class="prop-row"><label>Status</label><span class="badge ${w.locked?'locked':'ok'}">${w.locked?'🔒 Locked':'🔓 Unlocked'}</span></div>
+      <div class="prop-row btn-row">
+        <button onclick="applyWallProps()">Apply</button>
+        <button onclick="toggleWallLock()">${w.locked?'Unlock':'Lock'}</button>
+      </div>
+      <div class="prop-row btn-row"><button class="danger" onclick="deleteSelected()" style="width:100%">🗑️ Delete Wall</button></div>
+    `;
+  },
+  renderDevice(content) {
+    const d = Selection.object;
+    let extra = '';
+    if (d.type === 'camera') {
+      extra = `
+        <div class="prop-row"><label>Model</label>
+          <select id="pCamModel" onchange="applyDeviceProps()">
+            <option value="bullet" ${d.model==='bullet'?'selected':''}>Bullet Outdoor</option>
+            <option value="dome" ${d.model==='dome'?'selected':''}>Dome Indoor</option>
+            <option value="turret" ${d.model==='turret'?'selected':''}>Turret Eyeball</option>
+            <option value="fisheye" ${d.model==='fisheye'?'selected':''}>Fisheye 360°</option>
+          </select>
+        </div>
+        <div class="prop-row"><label>FOV (°)</label><input type="number" id="pCamFov" value="${d.fov}" min="10" max="360" onchange="applyDeviceProps()"></div>
+        <div class="prop-row"><label>Rotation (°)</label><input type="range" id="pCamRot" min="0" max="360" value="${d.rotation}" oninput="applyDeviceProps()"></div>
+        <div class="prop-row"><label>Range (m)</label><input type="number" id="pCamRange" value="${d.rangeMeters}" min="1" max="100" onchange="applyDeviceProps()"></div>
+      `;
+    }
+    content.innerHTML = `
+      <div class="prop-row"><label>Device ID</label><input value="#${d.id}" disabled></div>
+      <div class="prop-row"><label>Name</label><input type="text" id="pDevName" value="${d.name}" onchange="applyDeviceProps()"></div>
+      <div class="prop-row"><label>Type</label><input value="${d.type.toUpperCase()}" disabled></div>
+      <div class="prop-row"><label>Position</label><input value="x:${ScaleManager.pxToMeters(d.x).toFixed(2)}m, y:${ScaleManager.pxToMeters(d.y).toFixed(2)}m" disabled></div>
+      ${extra}
+      <div class="prop-row btn-row"><button class="danger" onclick="deleteSelected()" style="width:100%">🗑️ Delete Device</button></div>
+    `;
+  }
+};
+
+function applyWallProps() {
+  const w = Selection.object;
+  if (!w || w.locked) return;
+  const lenInput = document.getElementById('pWallLen').value;
+  const angleInput = document.getElementById('pWallAngle').value;
+  const meters = ScaleManager.parseLengthToMeters(lenInput);
+  const angle = parseFloat(angleInput);
+  if (meters === null || meters <= 0) { alert('Invalid length'); return; }
+  if (isNaN(angle)) { alert('Invalid angle'); return; }
+  WallManager.setAngleDeg(w, angle, 'x1y1');
+  WallManager.setLengthMeters(w, meters, 'x1y1');
+  History.snapshot();
+  PropertyPanel.render();
+  Renderer.draw();
+}
+function toggleWallLock() {
+  const w = Selection.object;
+  if (!w) return;
+  w.locked = !w.locked;
+  History.snapshot();
+  PropertyPanel.render();
+  Renderer.draw();
+}
+function applyDeviceProps() {
+  const d = Selection.object;
+  if (!d) return;
+  const nameEl = document.getElementById('pDevName');
+  if (nameEl) d.name = nameEl.value || d.name;
+  if (d.type === 'camera') {
+    const model = document.getElementById('pCamModel')?.value;
+    if (model) d.model = model;
+    const fov = document.getElementById('pCamFov')?.value;
+    if (fov) d.fov = Math.max(10, Math.min(360, parseFloat(fov) || d.fov));
+    const rot = document.getElementById('pCamRot')?.value;
+    if (rot !== undefined) d.rotation = parseFloat(rot);
+    const range = document.getElementById('pCamRange')?.value;
+    if (range) d.rangeMeters = Math.max(1, parseFloat(range) || d.rangeMeters);
+  }
+  RouteManager.syncAll();
+  Renderer.draw();
+  updateBOM();
+}
+
+/* ---------------------------------------------------------
+   RENDERER
+   --------------------------------------------------------- */
+const Renderer = {
+  showSnapIndicator: null,
+  draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    this.drawGrid();
+    this.drawCameraFOVs();
+    this.drawWalls();
+    this.drawRoutes();
+    this.drawDevices();
+    if (WallDraw.active && WallDraw.preview) this.drawWallPreview();
+    if (this.showSnapIndicator) this.drawSnapIndicator();
+    if (CableDraw.fromDevice) this.drawCablePreview();
+    document.getElementById('objCount').textContent = ProjectState.walls.length + ProjectState.devices.length + ProjectState.routes.length;
+  },
+  drawSnapIndicator() {
+    const p = this.showSnapIndicator;
+    ctx.strokeStyle = '#ffc107'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI*2); ctx.stroke();
+  },
+  drawCablePreview() {
+    const d = CableDraw.fromDevice;
+    ctx.fillStyle = '#f0ad4e';
+    ctx.beginPath(); ctx.arc(d.x, d.y, 14, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = '#f0ad4e'; ctx.lineWidth = 2; ctx.stroke();
+  },
+  drawRoutes() {
+    ProjectState.routes.forEach(r => {
+      const isSel = Selection.object === r;
+      ctx.strokeStyle = isSel ? '#f0ad4e' : '#20c997';
+      ctx.lineWidth = isSel ? 3.5 : 2.5;
+      ctx.setLineDash([7,4]);
+      ctx.beginPath();
+      r.waypoints.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const meters = RouteManager.lengthMeters(r);
+      const mid = r.waypoints[Math.floor(r.waypoints.length/2)];
+      ctx.fillStyle = isSel ? '#f0ad4e' : '#20c997';
+      ctx.font = 'bold 11px Arial';
+      ctx.fillText(ScaleManager.formatLength(meters), mid.x + 6, mid.y - 6);
+
+      if (isSel) {
+        r.waypoints.forEach((p, idx) => {
+          const isEndpoint = idx === 0 || idx === r.waypoints.length - 1;
+          ctx.fillStyle = isEndpoint ? '#20c997' : '#fff';
+          ctx.strokeStyle = '#f0ad4e'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(p.x, p.y, isEndpoint ? 5 : 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        });
+      }
+    });
+  },
+  drawGrid() {
+    const gridPx = ScaleManager.metersToPx(0.5); // 0.5m grid
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += gridPx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += gridPx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+    // 1m major grid
+    const majorPx = ScaleManager.metersToPx(1);
+    ctx.strokeStyle = '#e0e0e0';
+    for (let x = 0; x < canvas.width; x += majorPx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += majorPx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+  },
+  drawWalls() {
+    ProjectState.walls.forEach(w => {
+      const isSel = Selection.object === w;
+      ctx.strokeStyle = isSel ? '#0d6efd' : (w.locked ? '#888' : '#343a40');
+      ctx.lineWidth = isSel ? 7 : 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
+
+      const meters = ScaleManager.pxToMeters(WallManager.length(w));
+      const label = ScaleManager.formatLength(meters);
+      const midX = (w.x1 + w.x2) / 2, midY = (w.y1 + w.y2) / 2;
+      ctx.fillStyle = isSel ? '#0d6efd' : '#212529';
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText(label, midX + 8, midY - 8);
+
+      if (w.locked) { ctx.font = '12px Arial'; ctx.fillText('🔒', midX - 20, midY - 8); }
+
+      if (isSel) {
+        [[w.x1,w.y1],[w.x2,w.y2]].forEach(([hx,hy]) => {
+          ctx.fillStyle = '#fff'; ctx.strokeStyle = '#0d6efd'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        });
+      }
+    });
+  },
+  drawCameraFOVs() {
+    ProjectState.devices.filter(d => d.type === 'camera').forEach(cam => {
+      const rangePx = ScaleManager.metersToPx(cam.rangeMeters || 12);
+      ctx.save(); ctx.beginPath();
+      if (cam.model === 'fisheye') {
+        ctx.arc(cam.x, cam.y, rangePx, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(13,202,240,0.18)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(13,202,240,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        const fov = (cam.fov || 84) * Math.PI / 180;
+        const rot = (cam.rotation || 0) * Math.PI / 180;
+        ctx.moveTo(cam.x, cam.y);
+        ctx.arc(cam.x, cam.y, rangePx, rot - fov/2, rot + fov/2);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(40,167,69,0.18)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(40,167,69,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.restore();
+    });
+  },
+  drawDevices() {
+    ProjectState.devices.forEach(d => {
+      const isSel = Selection.object === d;
+      const cfg = DEVICE_DEFAULTS[d.type];
+      ctx.save(); ctx.translate(d.x, d.y);
+      if (d.type === 'camera' && d.model !== 'fisheye') ctx.rotate((d.rotation||0) * Math.PI/180);
+      ctx.fillStyle = isSel ? '#0d6efd' : cfg.color;
+      ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+      if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+      if (d.type === 'camera' && d.model !== 'fisheye') {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.moveTo(3,-4); ctx.lineTo(9,0); ctx.lineTo(3,4); ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = '#212529'; ctx.font = '11px Arial';
+      ctx.fillText(d.name, d.x + 13, d.y + 4);
+    });
+  },
+  drawWallPreview() {
+    const p = WallDraw.preview, s = WallDraw.start;
+    ctx.strokeStyle = '#0d6efd'; ctx.lineWidth = 4; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#0d6efd'; ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, Math.PI*2); ctx.fill();
+  }
+};
+
+function drawMeasurePreview(a, b) {
+  Renderer.draw();
+  ctx.strokeStyle = '#e83e8c'; ctx.lineWidth = 2; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#e83e8c';
+  [a,b].forEach(p => { ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); });
+}
+
+/* ---------------------------------------------------------
+   PROJECT IO
+   --------------------------------------------------------- */
+const ProjectIO = {
+  exportJSON() {
+    const data = {
+      version: 2,
+      walls: ProjectState.walls,
+      devices: ProjectState.devices,
+      routes: ProjectState.routes,
+      nextId: ProjectState.nextId,
+      scale: { pxPerMeter: ScaleManager.pxPerMeter, calibrated: ScaleManager.calibrated }
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `network_plan_${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  },
+  importJSON(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.walls || !data.devices) throw new Error('Invalid project file');
+        ProjectState.walls = data.walls;
+        ProjectState.devices = data.devices;
+        ProjectState.routes = data.routes || [];
+        ProjectState.nextId = data.nextId || (Math.max(0, ...data.walls.map(w=>w.id), ...data.devices.map(d=>d.id)) + 1);
+        if (data.scale) {
+          ScaleManager.pxPerMeter = data.scale.pxPerMeter || 50;
+          ScaleManager.calibrated = !!data.scale.calibrated;
+          updateScaleStatus();
+        }
+        Selection.clear();
+        History.reset();
+        Renderer.draw();
+        updateBOM();
+      } catch (err) {
+        alert('Failed to load project: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+};
+
+/* ---------------------------------------------------------
+   BOM PANEL LOGIC
+   --------------------------------------------------------- */
+function toggleBOMPanel() {
+  const panel = document.getElementById('bomPanel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('bomToggleBtn').textContent = panel.classList.contains('collapsed') ? '▲ Expand' : '▼ Collapse';
+}
+
+function updateBOM() {
+  const tbody = document.getElementById('bomTbody');
+  const slack = parseFloat(document.getElementById('slackPercent').value) || 0;
+  const routes = ProjectState.routes;
+
+  if (routes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">No cable routes yet. Use the Cable tool to connect Rack → Device.</td></tr>';
+    document.getElementById('bomStats').innerHTML = '';
+    return;
+  }
+
+  let rows = '';
+  const lengths = [];
+  let totalRaw = 0, totalSlack = 0;
+
+  routes.forEach(r => {
+    const from = ProjectState.devices.find(d => d.id === r.fromId);
+    const to = ProjectState.devices.find(d => d.id === r.toId);
+    const meters = RouteManager.lengthMeters(r);
+    const withSlack = meters * (1 + slack/100);
+    lengths.push(meters);
+    totalRaw += meters;
+    totalSlack += withSlack;
+
+    rows += `<tr>
+      <td>#${r.id}</td>
+      <td>${from ? from.name : '?'}</td>
+      <td>${to ? to.name : '?'}</td>
+      <td class="num">${ScaleManager.formatLength(meters)}</td>
+      <td class="num">${slack}%</td>
+      <td class="num">${ScaleManager.formatLength(withSlack)}</td>
+      <td><button class="route-del-btn" onclick="deleteRouteById(${r.id})">Delete</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+
+  const longest = Math.max(...lengths);
+  const shortest = Math.min(...lengths);
+  const avg = lengths.reduce((a,b)=>a+b,0) / lengths.length;
+
+  document.getElementById('bomStats').innerHTML = `
+    <div class="bom-stat">Total Physical Cable<b>${ScaleManager.formatLength(totalRaw)}</b></div>
+    <div class="bom-stat">Total + Slack<b>${ScaleManager.formatLength(totalSlack)}</b></div>
+    <div class="bom-stat">Number of Runs<b>${routes.length}</b></div>
+    <div class="bom-stat">Longest Run<b>${ScaleManager.formatLength(longest)}</b></div>
+    <div class="bom-stat">Shortest Run<b>${ScaleManager.formatLength(shortest)}</b></div>
+    <div class="bom-stat">Average Run<b>${ScaleManager.formatLength(avg)}</b></div>
+  `;
+}
+
+function deleteRouteById(id) {
+  const r = ProjectState.routes.find(x => x.id === id);
+  if (!r) return;
+  RouteManager.remove(r);
+  if (Selection.object === r) Selection.clear();
+  History.snapshot();
+  Renderer.draw();
+  updateBOM();
+}
+
+function exportBOMCSV() {
+  if (ProjectState.routes.length === 0) { alert('No cable routes to export yet.'); return; }
+  const slack = parseFloat(document.getElementById('slackPercent').value) || 0;
+  const cableType = document.getElementById('cableTypeSelect').value;
+  let csv = `Cable ID,From,To,Cable Type,Route Length (m),Slack %,Final Cable Length (m)\n`;
+  ProjectState.routes.forEach(r => {
+    const from = ProjectState.devices.find(d => d.id === r.fromId);
+    const to = ProjectState.devices.find(d => d.id === r.toId);
+    const meters = RouteManager.lengthMeters(r);
+    const withSlack = meters * (1 + slack/100);
+    csv += `${r.id},${from?from.name:'?'},${to?to.name:'?'},${cableType},${meters.toFixed(2)},${slack},${withSlack.toFixed(2)}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `cable_bom_${Date.now()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadPNG() {
+  const link = document.createElement('a');
+  link.download = `floorplan_${Date.now()}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function newProject() {
+  if (!confirm('Start a new project? Unsaved changes will be lost.')) return;
+  ProjectState.walls = [];
+  ProjectState.devices = [];
+  ProjectState.routes = [];
+  ProjectState.nextId = 1;
+  ScaleManager.pxPerMeter = 50;
+  ScaleManager.calibrated = false;
+  updateScaleStatus();
+  Selection.clear();
+  History.reset();
+  Renderer.draw();
+  updateBOM();
+}
+
+/* ---------------------------------------------------------
+   INIT
+   --------------------------------------------------------- */
+updateScaleStatus();
+History.reset();
+Renderer.draw();
+Viewport.fitToScreen();
+updateBOM();
+</script>
+
+</body>
+</html>
